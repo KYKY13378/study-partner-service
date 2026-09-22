@@ -17,3 +17,4 @@ __pycache__/
 # Операционная система
 .DS_Store
 Thumbs.db
+.pytest_cache/

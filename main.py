@@ -1,63 +1,113 @@
-# Сервис поиска партнеров для учебы
-# Начальный сценарий (ПР1)
+# main.py
+from src.partners import (
+    add_partner,
+    filter_partners_by_format,
+    find_partners_by_subject,
+    get_partner_status,
+)
+from src.storage import load_data, save_data
+from src.utils import input_date, input_int
 
-from datetime import date
-
-print("=" * 50)
-print("  СЕРВИС ПОИСКА ПАРТНЕРОВ ДЛЯ УЧЕБЫ")
-print("=" * 50)
-
-# --- СЦЕНАРИЙ 1: Регистрация пользователя ---
-print("\n[1] РЕГИСТРАЦИЯ ПОЛЬЗОВАТЕЛЯ")
-user_name = input("Введите ваше имя: ")
-user_group = input("Введите вашу группу: ")
-user_course = int(input("Введите ваш курс (числом): "))
-
-print(f"\nПользователь зарегистрирован:")
-print(f"  Имя: {user_name}")
-print(f"  Группа: {user_group}")
-print(f"  Курс: {user_course}")
-
-# --- СЦЕНАРИЙ 2: Публикация запроса на поиск партнера ---
-print("\n[2] ПУБЛИКАЦИЯ ЗАПРОСА НА ПОИСК ПАРТНЕРА")
-subject = input("Введите предмет для изучения: ")
-format_type = input("Формат занятий (онлайн/офлайн): ")
-study_date_str = input("Желаемая дата занятия (ДД.ММ.ГГГГ): ")
-
-# Преобразование строки в дату
+DATA_FILE = "data/partners.json"
 
 
-day, month, year = study_date_str.split(".")
-study_date = date(int(year), int(month), int(day)) 
+def show_menu() -> None:
+    """Вывести меню приложения."""
+    print("\n=== Сервис поиска партнеров для учебы ===")
+    print("1. Показать всех партнеров")
+    print("2. Найти партнера по предмету")
+    print("3. Отфильтровать по формату (онлайн/офлайн)")
+    print("4. Добавить нового партнера")
+    print("5. Показать статус поиска")
+    print("0. Выход")
 
-print(f"\nЗапрос опубликован:")
-print(f"  Предмет: {subject}")
-print(f"  Формат: {format_type}")
-print(f"  Дата: {study_date}")
 
-# --- СЦЕНАРИЙ 3: Поиск партнера по предмету ---
-print("\n[3] ПОИСК ПАРТНЕРА ПО ПРЕДМЕТУ")
-search_subject = input("Введите предмет для поиска партнера: ")
+def show_all_partners(partners: list[dict]) -> None:
+    """Вывести список всех партнеров."""
+    if not partners:
+        print("Список партнеров пуст.")
+        return
 
-# Простая имитация поиска (на ПР2 заменим на реальную базу данных)
-available_partners = [
-    {"name": "Алексей", "subject": "Математика", "format": "офлайн"},
-    {"name": "Мария", "subject": "Программирование", "format": "онлайн"},
-    {"name": "Дмитрий", "subject": "Физика", "format": "офлайн"},
-]
+    print("\n--- Все партнеры ---")
+    for p in partners:
+        print(f"ID: {p['id']}, Имя: {p['name']}, "
+              f"Предмет: {p['subject']}, "
+              f"Формат: {p['format']}, Дата: {p['date']}")
 
-found = False
-for partner in available_partners:
-    if partner["subject"].lower() == search_subject.lower():
-        print(f"\nНайден партнер: {partner['name']}")
-        print(f"  Предмет: {partner['subject']}")
-        print(f"  Формат: {partner['format']}")
-        found = True
-        break
 
-if not found:
-    print(f"\nПартнер по предмету '{search_subject}' не найден.")
+def find_partner_menu(partners: list[dict]) -> None:
+    """Меню поиска партнера по предмету."""
+    subject = input("Введите предмет для поиска: ")
+    found = find_partners_by_subject(partners, subject)
 
-print("\n" + "=" * 50)
-print("  Работа сервиса завершена")
-print("=" * 50)
+    if found:
+        print(f"\nНайдено партнеров: {len(found)}")
+        for p in found:
+            print(f"  - {p['name']} ({p['format']}, дата: {p['date']})")
+    else:
+        print(f"\nПартнеры по предмету '{subject}' не найдены.")
+
+
+def filter_by_format_menu(partners: list[dict]) -> None:
+    """Меню фильтрации по формату."""
+    format_type = input("Введите формат (онлайн/офлайн): ")
+    filtered = filter_partners_by_format(partners, format_type)
+
+    if filtered:
+        print(f"\nПартнеров с форматом '{format_type}': {len(filtered)}")
+        for p in filtered:
+            print(f"  - {p['name']} ({p['subject']}, дата: {p['date']})")
+    else:
+        print(f"\nПартнеры с форматом '{format_type}' не найдены.")
+
+
+def add_partner_menu(partners: list[dict]) -> None:
+    """Меню добавления нового партнера."""
+    print("\n--- Добавление нового партнера ---")
+    name = input("Введите имя: ")
+    subject = input("Введите предмет: ")
+    format_type = input("Введите формат (онлайн/офлайн): ")
+    study_date = input_date("Введите дату (ДД.ММ.ГГГГ): ")
+
+    add_partner(partners, name, subject, format_type,
+                study_date.strftime("%d.%m.%Y"))
+    save_data(DATA_FILE, partners)
+    print("Партнер успешно добавлен и сохранен!")
+
+
+def show_status_menu() -> None:
+    """Меню показа статуса поиска."""
+    answer = input("Партнер найден? (да/нет): ").lower()
+    print(get_partner_status(answer == "да"))
+
+
+def main() -> None:
+    """Точка запуска приложения."""
+    partners = load_data(DATA_FILE)
+    if not partners:
+        print("Загружены пустые данные. Начинаем с чистого списка.")
+
+    while True:
+        show_menu()
+        choice = input_int("\nВыберите действие: ")
+
+        if choice == 1:
+            show_all_partners(partners)
+        elif choice == 2:
+            find_partner_menu(partners)
+        elif choice == 3:
+            filter_by_format_menu(partners)
+        elif choice == 4:
+            add_partner_menu(partners)
+        elif choice == 5:
+            show_status_menu()
+        elif choice == 0:
+            save_data(DATA_FILE, partners)
+            print("Данные сохранены. До свидания!")
+            break
+        else:
+            print("Неверный выбор. Попробуйте снова.")
+
+
+if __name__ == "__main__":
+    main()
