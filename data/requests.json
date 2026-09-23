@@ -1,0 +1,42 @@
+[
+    {
+        "id": 1,
+        "user_id": 1,
+        "subject_id": 1,
+        "format": "офлайн",
+        "date": "15.09.2026",
+        "is_closed": false
+    },
+    {
+        "id": 2,
+        "user_id": 2,
+        "subject_id": 2,
+        "format": "онлайн",
+        "date": "20.09.2026",
+        "is_closed": false
+    },
+    {
+        "id": 3,
+        "user_id": 3,
+        "subject_id": 1,
+        "format": "онлайн",
+        "date": "18.09.2026",
+        "is_closed": false
+    },
+    {
+        "id": 4,
+        "user_id": 4,
+        "subject_id": 3,
+        "format": "онлайн",
+        "date": "25.09.2026",
+        "is_closed": false
+    },
+    {
+        "id": 5,
+        "user_id": 2,
+        "subject_id": 1,
+        "format": "офлайн",
+        "date": "01.10.2026",
+        "is_closed": true
+    }
+]
