@@ -1,4 +1,4 @@
-"""Настройка Django для pytest без подключения тестовой базы данных."""
+"""Настройка Django для pytest с отдельной временной SQLite для каждого теста."""
 import os
 
 import django
@@ -21,3 +21,14 @@ def pytest_unconfigure():
 def client():
     with override_settings(ALLOWED_HOSTS=["testserver"]):
         yield Client()
+
+
+@pytest.fixture(autouse=True)
+def isolated_sqlite(tmp_path, monkeypatch):
+    from db import database
+    from db.import_json import import_json
+
+    path = tmp_path / "test.sqlite"
+    monkeypatch.setattr(database, "DATABASE_FILE", path)
+    import_json(path)
+    yield path

@@ -2,19 +2,18 @@
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 
-from src.storage import load_requests, load_subjects, load_users
+from db.database import query
+from db.repository import get_recent_requests, get_subjects
 
 
 def index(request: HttpRequest) -> HttpResponse:
     """Передать на главную реальные предметы, запросы и сводные показатели."""
-    users = load_users()
-    subjects = load_subjects()
-    requests = load_requests(users, subjects)
+    totals = query("request_totals")[0]
+    catalog = query("catalog_totals")[0]
     return render(request, "homepage/index.html", {
-        "subjects": subjects,
-        "recent_requests": list(reversed(requests))[:3],
-        "active_count": sum(not item.is_closed for item in requests),
-        "user_count": len(users),
+        "subjects": get_subjects(),
+        "recent_requests": get_recent_requests(),
+        "active_count": totals["active"], "user_count": catalog["users"],
     })
 
 

@@ -15,7 +15,7 @@ from src.subjects import Subject
     ("/requests/", "Запросы"),
     ("/requests/5/", "Мария"),
 ])
-def test_pages_show_json_data(client, url, text):
+def test_pages_show_sqlite_data(client, url, text):
     response = client.get(url)
     assert response.status_code == 200
     assert text in response.content.decode()
@@ -43,8 +43,8 @@ def test_converter_rejects_text_before_view():
 
 
 @pytest.mark.parametrize("url,module,loader,text", [
-    ("/subjects/", "subjects.views", "load_subjects", "Предметов пока нет"),
-    ("/requests/", "requests.views", "load_requests", "Запросов пока нет"),
+    ("/subjects/", "subjects.views", "get_subject_cards", "Предметов пока нет"),
+    ("/requests/", "requests.views", "get_requests", "Запросов пока нет"),
 ])
 def test_empty_collections_have_message(client, url, module, loader, text):
     with patch(f"{module}.{loader}", return_value=[]):
@@ -53,9 +53,10 @@ def test_empty_collections_have_message(client, url, module, loader, text):
     assert text in response.content.decode()
 
 
-def test_json_text_is_escaped(client):
+def test_database_text_is_escaped(client):
     subject = Subject(99, "<script>alert('test')</script>")
-    with patch("subjects.views.load_subjects", return_value=[subject]):
+    with patch("subjects.views.get_subject_cards",
+               return_value=[{"subject": subject, "active_count": 0}]):
         html = client.get("/subjects/").content.decode()
     assert "<script>alert" not in html
     assert "&lt;script&gt;" in html

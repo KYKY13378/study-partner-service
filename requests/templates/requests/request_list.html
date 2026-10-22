@@ -6,6 +6,13 @@
     <h1>Запросы на партнерство</h1>
     <p>Найдите подходящий предмет, дату и удобный формат занятий.</p>
   </section>
+  {% if error %}<p class="form-error" role="alert">{{ error }}</p>{% endif %}
+  <div class="status-tabs" aria-label="Статус запросов">
+    <a href="{% url 'requests:list' %}" {% if status == 'all' %}aria-current="page"{% endif %}>Все</a>
+    <a href="?status=active" {% if status == 'active' %}aria-current="page"{% endif %}>Активные</a>
+    <a href="?status=closed" {% if status == 'closed' %}aria-current="page"{% endif %}>Закрытые</a>
+    <a class="text-link" href="{% url 'requests:search' %}">Поиск по дате и предмету →</a>
+  </div>
   <div class="filter-panel" data-request-filters hidden>
     <div class="field search-field">
       <label for="request-search">Поиск по запросам</label><input id="request-search"

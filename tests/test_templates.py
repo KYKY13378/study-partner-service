@@ -47,7 +47,7 @@ def test_subject_shows_only_its_active_requests(client):
 
 
 def test_subject_with_no_active_requests_has_empty_state(client):
-    with patch("subjects.views.load_requests", return_value=[]):
+    with patch("subjects.views.get_requests_for_subject", return_value=[]):
         response = client.get("/subjects/1/")
     assert "Активных запросов пока нет" in response.content.decode()
 
@@ -66,7 +66,7 @@ def test_detail_passes_related_objects_and_closed_state(client):
 
 def test_invalid_date_uses_template_fallback(client):
     item = StudyRequest(9, User(1, "Анна", ""), Subject(1, "Python"), "онлайн", "broken")
-    with patch("requests.views.load_requests", return_value=[item]):
+    with patch("requests.views.get_requests", return_value=[item]):
         html = client.get("/requests/").content.decode()
     assert "Дата не указана" in html
     assert "Группа не указана" in html

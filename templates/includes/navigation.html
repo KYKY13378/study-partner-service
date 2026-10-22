@@ -16,7 +16,9 @@
       <a href="{% url 'subjects:list' %}"
          {% if request.resolver_match.namespace == 'subjects' %}aria-current="page"{% endif %}>Предметы</a>
       <a href="{% url 'requests:list' %}"
-         {% if request.resolver_match.namespace == 'requests' %}aria-current="page"{% endif %}>Запросы</a>
+         {% if request.resolver_match.view_name == 'requests:list' or request.resolver_match.view_name == 'requests:detail' %}aria-current="page"{% endif %}>Запросы</a>
+      <a href="{% url 'requests:search' %}" {% if request.resolver_match.view_name == 'requests:search' %}aria-current="page"{% endif %}>Поиск</a>
+      <a href="{% url 'requests:statistics' %}" {% if request.resolver_match.view_name == 'requests:statistics' %}aria-current="page"{% endif %}>Статистика</a>
     </nav>
     <span class="header-note">Вместе к знаниям</span>
   </div>
