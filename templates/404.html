@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{% block title %}Страница не найдена · Учимся вместе{% endblock %}
+{% block content %}
+  <section class="error-page"><p class="error-code" aria-hidden="true">404</p><p class="eyebrow">Кажется, здесь пока пусто</p><h1>{{ message|default:"Эта страница не найдена" }}</h1><p>Проверьте адрес или вернитесь к поиску учебного партнера.</p><div class="button-row"><a class="button button-primary" href="{% url 'homepage:index' %}">На главную</a><a class="text-link" href="{% url 'requests:list' %}">Посмотреть запросы →</a></div></section>
+{% endblock %}

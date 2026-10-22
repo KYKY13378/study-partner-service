@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Запрос № {{ study_request.id }} · Учимся вместе{% endblock %}
+{% block content %}
+  <a class="back-link" href="{% url 'requests:list' %}">← Все запросы</a>
+  <section class="request-detail-layout">
+    <article class="detail-card">
+      <div class="card-top"><p class="eyebrow">Учебное партнерство / № {{ study_request.id }}</p>{% include "requests/includes/request_status.html" with item=study_request only %}</div>
+      <h1>{{ study_request.subject.name|default:"Предмет не указан" }}</h1>
+      <p class="detail-lead">Запрос №{{ study_request.id }} на совместные занятия</p>
+      <div class="person-line large">
+        <span class="avatar" aria-hidden="true">{{ study_request.user.name|first|upper }}</span>
+        <div>
+          <h2>{{ study_request.user.name|default:"Участник" }}</h2>
+          <p>Группа {{ study_request.user.group|default:"не указана" }}</p>
+        </div>
+      </div>
+      <dl class="detail-facts"><div><dt>Предмет</dt><dd><a href="{% url 'subjects:detail' study_request.subject.id %}">{{ study_request.subject.name }}</a></dd></div><div><dt>Формат занятий</dt><dd>{{ study_request.format|capfirst }}</dd></div><div><dt>Желаемая дата</dt><dd>{{ study_request.study_day|date:"d E Y"|default:"Дата не указана" }}</dd></div><div><dt>Статус</dt><dd>{% if study_request.is_closed %}Поиск завершен{% else %}Поиск открыт{% endif %}</dd></div></dl>
+    </article>
+    <aside class="detail-note"><span class="note-number">Вместе</span><h2>{% if study_request.is_closed %}Этот запрос закрыт{% else %}Одна тема, общий интерес{% endif %}</h2><p>{% if study_request.is_closed %}Автор завершил поиск по этому запросу. Посмотрите другие предложения участников.{% else %}Сравните предмет, дату и формат занятий с вашими учебными планами.{% endif %}</p><a class="button button-primary" href="{% url 'requests:list' %}">Другие запросы →</a></aside>
+  </section>
+{% endblock %}

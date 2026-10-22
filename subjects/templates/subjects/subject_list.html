@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Предметы · Учимся вместе{% endblock %}
+{% block content %}
+  <section class="page-intro">
+    <p class="eyebrow">Ваша следующая учебная цель</p>
+    <h1>Предметы</h1>
+    <p>Выберите дисциплину и посмотрите, кто ищет партнера для занятий.</p>
+  </section>
+  <div class="section-heading compact"><span class="muted">Предметов в каталоге: {{ subject_cards|length }}</span><span class="label-tag">Любопытство объединяет</span></div>
+  <div class="subject-grid">
+    {% for card in subject_cards %}
+      {% include "subjects/includes/subject_card.html" with subject=card.subject active_count=card.active_count only %}
+    {% empty %}
+      <div class="empty-state">
+        <h2>Предметов пока нет.</h2>
+        <p>Каталог будет доступен после добавления дисциплин.</p>
+      </div>
+    {% endfor %}
+  </div>
+{% endblock %}

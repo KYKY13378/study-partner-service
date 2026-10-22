@@ -1,0 +1,24 @@
+<article class="request-card"
+         data-request-item
+         data-search="{{ item.user.name }} {{ item.user.group }} {{ item.subject.name }} {{ item.date }}"
+         data-format="{{ item.format|lower }}"
+         data-closed="{{ item.is_closed|yesno:'true,false' }}">
+  <div class="card-top"><span class="label-tag">{{ item.subject.name|default:"Предмет не указан" }}</span>{% include "requests/includes/request_status.html" with item=item only %}</div>
+  <div class="person-line"><span class="avatar" aria-hidden="true">{{ item.user.name|first|upper }}</span><div><h3><a href="{% url 'requests:detail' item.id %}">{{ item.user.name|default:"Участник" }}</a></h3><p>{{ item.user.group|default:"Группа не указана" }}</p></div></div>
+  <dl class="request-meta">
+    <div>
+      <dt>Формат</dt>
+      <dd>
+        {{ item.format|capfirst|default:"Не указан" }}
+      </dd>
+    </div>
+    <div>
+      <dt>Дата занятия</dt>
+      <dd>
+        {{ item.study_day|date:"d E Y"|default:"Дата не указана" }}
+      </dd>
+    </div>
+  </dl>
+  <a class="card-link"
+     href="{% url 'requests:detail' item.id %}">Запрос № {{ item.id }} <span aria-hidden="true">→</span></a>
+</article>

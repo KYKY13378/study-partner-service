@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Запросы на партнерство · Учимся вместе{% endblock %}
+{% block content %}
+  <section class="page-intro">
+    <p class="eyebrow">Для тех, кто хочет разобраться вместе</p>
+    <h1>Запросы на партнерство</h1>
+    <p>Найдите подходящий предмет, дату и удобный формат занятий.</p>
+  </section>
+  <div class="filter-panel" data-request-filters hidden>
+    <div class="field search-field">
+      <label for="request-search">Поиск по запросам</label><input id="request-search"
+       type="search"
+       placeholder="Предмет, имя, группа или дата"
+       autocomplete="off"
+       data-search-input>
+    </div>
+    <div class="field">
+      <label for="request-format">Формат занятий</label><select id="request-format"
+        data-format-input>
+        <option value="">Все форматы</option>
+        <option value="онлайн">Онлайн</option>
+        <option value="офлайн">Офлайн</option>
+      </select>
+    </div>
+    <label class="checkbox-field">
+      <input type="checkbox" data-active-input>
+      Только активные
+    </label>
+    <button class="button button-outline reset-button"
+            type="button"
+            data-reset-filters>Сбросить</button>
+  </div>
+  <div class="section-heading compact"><span class="muted" role="status" aria-live="polite" data-results-count>Всего запросов: {{ study_requests|length }}</span><span class="label-tag">У каждого свой темп</span></div>
+  <div class="request-grid" data-request-list>
+    {% for item in study_requests %}
+      {% include "requests/includes/request_card.html" with item=item only %}
+    {% empty %}
+      <div class="empty-state"><h2>Запросов пока нет.</h2><p>Посмотрите каталог предметов и выберите интересующую дисциплину.</p><a class="text-link" href="{% url 'subjects:list' %}">Предметы →</a></div>
+    {% endfor %}
+  </div>
+  <div class="empty-state" data-no-results hidden>
+    <h2>Ничего не найдено</h2>
+    <p>Попробуйте другой предмет, имя или формат занятий.</p>
+    <button class="button button-outline"
+            type="button"
+            data-reset-filters>Показать все запросы</button>
+  </div>
+  <noscript>
+    <p class="muted">Показаны все запросы. Для быстрого поиска на странице включите JavaScript.</p>
+  </noscript>
+{% endblock %}

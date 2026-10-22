@@ -3,7 +3,9 @@ from django.urls import path
 
 from . import views
 
+app_name = "subjects"
+
 urlpatterns = [
-    path("", views.subjects, name="subjects"),
-    path("<int:subject_id>/", views.subject_detail, name="subject_detail"),
+    path("", views.subjects, name="list"),
+    path("<int:subject_id>/", views.subject_detail, name="detail"),
 ]

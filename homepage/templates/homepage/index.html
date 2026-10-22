@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="hero">
+    <div class="hero-copy">
+      <p class="eyebrow"><span class="small-dot"></span>У каждого предмета есть единомышленники</p>
+      <h1>
+        Учиться вместе
+        <br>
+        <em>проще.</em>
+      </h1>
+      <p class="hero-description">Сервис поиска партнеров для учебы. Объединяйтесь, чтобы разобраться в сложной теме, подготовиться к экзамену или решить задачу.</p>
+      <div class="button-row">
+        <a class="button button-primary"
+           href="{% url 'requests:list' %}">Найти партнера <span aria-hidden="true">↗</span></a>
+        <a class="text-link" href="{% url 'subjects:list' %}">Выбрать предмет →</a>
+      </div>
+      <div class="hero-stats">
+        <div><strong>{{ active_count }}</strong><span>открытых запросов</span></div>
+        <div><strong>{{ subjects|length }}</strong><span>предмета для изучения</span></div>
+        <div><strong>{{ user_count }}</strong><span>участника сервиса</span></div>
+      </div>
+    </div>
+    <aside class="hero-aside" aria-label="Как начать совместную учебу">
+      <p class="eyebrow">Одна цель — два взгляда</p>
+      <div class="study-illustration" aria-hidden="true">
+        <span class="orbit orbit-one"></span><span class="orbit orbit-two"></span>
+        <span class="person person-one">Вы</span><span class="person person-two">Партнер</span>
+        <span class="book-symbol">Аа<span>+ идеи</span></span>
+      </div>
+      <ol class="steps">
+        <li>
+          <span>01</span>
+          <div>
+            <strong>Выберите предмет</strong>
+            <p>Найдите интересующую дисциплину.</p>
+          </div>
+        </li>
+        <li>
+          <span>02</span>
+          <div>
+            <strong>Посмотрите запросы</strong>
+            <p>Сравните дату и формат занятий.</p>
+          </div>
+        </li>
+        <li>
+          <span>03</span>
+          <div>
+            <strong>Найдите общий ритм</strong>
+            <p>Начните с подходящего учебного запроса.</p>
+          </div>
+        </li>
+      </ol>
+    </aside>
+  </section>
+  <section class="section-block">
+    <div class="section-heading"><div><p class="eyebrow">С чего начнем?</p><h2>Предметы для совместной учебы</h2></div><a class="text-link" href="{% url 'subjects:list' %}">Все предметы →</a></div>
+    <div class="subject-grid">
+      {% for subject in subjects %}
+        {% include "subjects/includes/subject_card.html" with subject=subject only %}
+      {% empty %}
+        <p class="empty-state">Предметов пока нет.</p>
+      {% endfor %}
+    </div>
+  </section>
+  <section class="section-block">
+    <div class="section-heading"><div><p class="eyebrow">Учебные планы участников</p><h2>Недавние запросы</h2></div><a class="text-link" href="{% url 'requests:list' %}">Все запросы →</a></div>
+    <div class="request-grid">
+      {% for item in recent_requests %}
+        {% include "requests/includes/request_card.html" with item=item only %}
+      {% empty %}
+        <p class="empty-state">Запросов пока нет.</p>
+      {% endfor %}
+    </div>
+  </section>
+{% endblock %}

@@ -1,0 +1,24 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description"
+          content="Найдите партнера для совместной учебы по предмету и формату занятий.">
+    <title>{% block title %}Сервис поиска партнеров для учебы{% endblock %}</title>
+    <link rel="icon"
+          href="{% static 'homepage/images/study-mark.svg' %}"
+          type="image/svg+xml">
+    <link rel="stylesheet" href="{% static 'homepage/css/style.css' %}">
+    <script src="{% static 'homepage/js/app.js' %}" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">К содержимому</a>
+    {% include "includes/navigation.html" %}
+    <main id="main" class="page-shell">
+      {% block content %}{% endblock %}
+    </main>
+    {% include "includes/footer.html" %}
+  </body>
+</html>

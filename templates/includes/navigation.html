@@ -1,0 +1,23 @@
+{% load static %}
+<header class="site-header">
+  <div class="header-inner">
+    <a class="brand"
+       href="{% url 'homepage:index' %}"
+       aria-label="Учимся вместе — главная">
+      <img src="{% static 'homepage/images/study-mark.svg' %}"
+           width="42"
+           height="42"
+           alt="">
+      <span>Учимся вместе<span class="brand-note">Сервис учебных партнерств</span></span>
+    </a>
+    <nav class="main-nav" aria-label="Основная навигация">
+      <a href="{% url 'homepage:index' %}"
+         {% if request.resolver_match.namespace == 'homepage' %}aria-current="page"{% endif %}>Главная</a>
+      <a href="{% url 'subjects:list' %}"
+         {% if request.resolver_match.namespace == 'subjects' %}aria-current="page"{% endif %}>Предметы</a>
+      <a href="{% url 'requests:list' %}"
+         {% if request.resolver_match.namespace == 'requests' %}aria-current="page"{% endif %}>Запросы</a>
+    </nav>
+    <span class="header-note">Вместе к знаниям</span>
+  </div>
+</header>

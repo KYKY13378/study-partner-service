@@ -1,4 +1,6 @@
 # src/requests.py
+from datetime import date, datetime
+
 from src.entities import Entity
 from src.subjects import Subject
 from src.users import User
@@ -34,6 +36,14 @@ class StudyRequest(Entity):
     def close(self) -> None:
         """Закрыть запрос: партнер найден, поиск завершен."""
         self.is_closed = True
+
+    @property
+    def study_day(self) -> date | None:
+        """Вернуть дату для шаблона, сохраняя строковый формат JSON ПР3."""
+        try:
+            return datetime.strptime(self.date, "%d.%m.%Y").date()
+        except (TypeError, ValueError):
+            return None
 
     def matches(
             self,
