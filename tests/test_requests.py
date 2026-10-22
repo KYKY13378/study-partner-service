@@ -4,6 +4,7 @@ from src.requests import (
     add_request,
     close_request,
     filter_requests_by_format,
+    find_request_by_id,
     find_requests_by_subject,
     get_partner_status,
 )
@@ -92,3 +93,14 @@ def test_close_request():
 def test_get_partner_status():
     assert "найден" in get_partner_status(True).lower()
     assert "не найден" in get_partner_status(False).lower()
+
+
+def test_find_request_by_id():
+    requests = []
+    user = User(1, "Иван", "ЭФБО-18-24")
+    subject = Subject(1, "Математика")
+    add_request(requests, user, subject, "онлайн", "15.09.2026")
+    found = find_request_by_id(requests, 1)
+    assert found is not None
+    assert found.user is user
+    assert find_request_by_id(requests, 99) is None

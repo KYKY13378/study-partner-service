@@ -42,7 +42,8 @@ def add_subject(subjects: list[Subject], name: str) -> Subject:
     Returns:
         Созданный объект Subject.
     """
-    subject = Subject(subject_id=len(subjects) + 1, name=name)
+    subject_id = max((subject.id for subject in subjects), default=0) + 1
+    subject = Subject(subject_id=subject_id, name=name)
     subjects.append(subject)
     return subject
 

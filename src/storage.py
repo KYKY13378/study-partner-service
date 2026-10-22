@@ -1,17 +1,19 @@
 # src/storage.py
 import json
 import os
+from pathlib import Path
 
 from src.requests import StudyRequest
 from src.subjects import Subject, find_subject_by_id
 from src.users import User, find_user_by_id
 
-USERS_FILE = "data/users.json"
-SUBJECTS_FILE = "data/subjects.json"
-REQUESTS_FILE = "data/requests.json"
+DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+USERS_FILE = DATA_DIR / "users.json"
+SUBJECTS_FILE = DATA_DIR / "subjects.json"
+REQUESTS_FILE = DATA_DIR / "requests.json"
 
 
-def _read_json(filename: str) -> list:
+def _read_json(filename: str | Path) -> list:
     """Прочитать список данных из JSON-файла.
 
     Args:
@@ -24,21 +26,24 @@ def _read_json(filename: str) -> list:
         return []
     try:
         with open(filename, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except (json.JSONDecodeError, ValueError):
-        print(f"Ошибка: файл {filename} поврежден.")
+            data = json.load(f)
+        if not isinstance(data, list) or any(not isinstance(item, dict) for item in data):
+            raise ValueError("Ожидается список словарей")
+        return data
+    except (OSError, UnicodeError, ValueError):
+        print(f"Ошибка: файл {filename} недоступен или поврежден.")
         return []
 
 
-def _write_json(filename: str, data: list) -> None:
+def _write_json(filename: str | Path, data: list) -> None:
     """Записать список данных в JSON-файл.
 
     Args:
         filename: Путь к файлу.
         data: Данные для сохранения.
     """
-    os.makedirs(os.path.dirname(filename), exist_ok=True)
     try:
+        os.makedirs(os.path.dirname(filename) or ".", exist_ok=True)
         with open(filename, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=4)
     except IOError as e:

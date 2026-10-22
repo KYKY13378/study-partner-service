@@ -45,7 +45,8 @@ def add_user(users: list[User], name: str, group: str) -> User:
     Returns:
         Созданный объект User.
     """
-    user = User(user_id=len(users) + 1, name=name, group=group)
+    user_id = max((user.id for user in users), default=0) + 1
+    user = User(user_id=user_id, name=name, group=group)
     users.append(user)
     return user
 

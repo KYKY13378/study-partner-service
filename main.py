@@ -120,6 +120,7 @@ def create_new_request(
         format_type,
         study_date.strftime("%d.%m.%Y"),
     )
+    save_requests(requests)
     print("Запрос создан:")
     print(request)
 
@@ -129,6 +130,7 @@ def close_request_menu(requests: list[StudyRequest]) -> None:
     show_requests(requests)
     request_id = input_int("Введите ID запроса для закрытия: ")
     if close_request(requests, request_id):
+        save_requests(requests)
         print("Запрос закрыт.")
     else:
         print("Ошибка: запрос с таким ID не найден.")

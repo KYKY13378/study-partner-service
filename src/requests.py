@@ -83,7 +83,7 @@ def add_request(
         Созданный объект StudyRequest.
     """
     request = StudyRequest(
-        request_id=len(requests) + 1,
+        request_id=max((request.id for request in requests), default=0) + 1,
         user=user,
         subject=subject,
         format_type=format_type,
@@ -154,3 +154,22 @@ def get_partner_status(is_found: bool) -> str:
     if is_found:
         return "Партнер найден! Можно связаться."
     return "Подходящий партнер не найден. Попробуйте изменить критерии."
+
+
+def find_request_by_id(
+        requests: list[StudyRequest],
+        request_id: int,
+) -> StudyRequest | None:
+    """Найти запрос по идентификатору.
+
+    Args:
+        requests: Список запросов.
+        request_id: Искомый идентификатор.
+
+    Returns:
+        Объект StudyRequest или None, если не найден.
+    """
+    for request in requests:
+        if request.id == request_id:
+            return request
+    return None
