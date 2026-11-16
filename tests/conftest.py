@@ -1,20 +1,6 @@
-"""Настройка Django для pytest с отдельной временной SQLite для каждого теста."""
-import os
-
-import django
+"""Изолированные базы ORM и прежнего SQL-слоя; рабочие файлы не изменяются."""
 import pytest
 from django.test import Client, override_settings
-from django.test.utils import setup_test_environment, teardown_test_environment
-
-
-def pytest_configure():
-    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "study_partner.settings")
-    django.setup()
-    setup_test_environment()
-
-
-def pytest_unconfigure():
-    teardown_test_environment()
 
 
 @pytest.fixture
@@ -32,3 +18,10 @@ def isolated_sqlite(tmp_path, monkeypatch):
     monkeypatch.setattr(database, "DATABASE_FILE", path)
     import_json(path)
     yield path
+
+
+@pytest.fixture(autouse=True)
+def seeded_orm(db, isolated_sqlite):
+    from db.transfer_to_orm import transfer_to_orm
+
+    transfer_to_orm(isolated_sqlite)

@@ -5,6 +5,7 @@ from unittest.mock import patch
 import pytest
 from django.contrib.staticfiles import finders
 from django.urls import reverse
+from django.template.loader import render_to_string
 
 from src.requests import StudyRequest
 from src.subjects import Subject
@@ -64,10 +65,9 @@ def test_detail_passes_related_objects_and_closed_state(client):
     assert "01 октября 2026" in html
 
 
-def test_invalid_date_uses_template_fallback(client):
+def test_invalid_date_uses_template_fallback():
     item = StudyRequest(9, User(1, "Анна", ""), Subject(1, "Python"), "онлайн", "broken")
-    with patch("requests.views.get_requests", return_value=[item]):
-        html = client.get("/requests/").content.decode()
+    html = render_to_string("requests/includes/request_card.html", {"item": item})
     assert "Дата не указана" in html
     assert "Группа не указана" in html
 

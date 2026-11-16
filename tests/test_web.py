@@ -47,8 +47,13 @@ def test_converter_rejects_text_before_view():
     ("/requests/", "requests.views", "get_requests", "Запросов пока нет"),
 ])
 def test_empty_collections_have_message(client, url, module, loader, text):
-    with patch(f"{module}.{loader}", return_value=[]):
+    if loader == "get_requests":
+        from requests.models import StudyRequest
+        StudyRequest.objects.all().delete()
         response = client.get(url)
+    else:
+        with patch(f"{module}.{loader}", return_value=[]):
+            response = client.get(url)
     assert response.status_code == 200
     assert text in response.content.decode()
 

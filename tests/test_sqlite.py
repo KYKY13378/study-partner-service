@@ -85,6 +85,11 @@ def test_grouping_having_and_participants_without_active_requests():
 
 
 def test_empty_database_and_subject_without_requests(client):
+    from requests.models import StudyRequest
+    from users.models import User
+
+    StudyRequest.objects.all().delete()
+    User.objects.create(name="Без группы")
     with closing(get_connection()) as connection, connection:
         connection.execute("DELETE FROM study_requests")
         connection.execute("INSERT INTO users VALUES (99, 'Без группы', NULL)")
@@ -97,16 +102,20 @@ def test_empty_database_and_subject_without_requests(client):
 
 
 def test_database_only_record_appears_on_site(client):
+    from subjects.models import Subject
+
     with closing(get_connection()) as connection, connection:
         connection.execute("INSERT INTO subjects VALUES (99, 'Только в SQLite')")
-    assert "Только в SQLite" in client.get("/subjects/").content.decode()
+    assert "Только в SQLite" not in client.get("/subjects/").content.decode()
+    Subject.objects.create(name="Только в ORM")
+    assert "Только в ORM" in client.get("/subjects/").content.decode()
 
 
 @pytest.mark.parametrize("status,ids", [
     ("all", {1, 2, 3, 4, 5}), ("active", {1, 2, 3, 4}), ("closed", {5}),
 ])
 def test_status_filter_is_done_on_server(client, status, ids):
-    response = client.get("/requests/", {"status": status})
+    response = client.get("/requests/", {"status": status, "per_page": 20})
     assert {r.id for r in response.context["study_requests"]} == ids
 
 
@@ -117,7 +126,7 @@ def test_combined_search_and_preserved_inputs(client):
     })
     assert response.status_code == 200
     assert [r.id for r in response.context["study_requests"]] == [3]
-    assert {r["id"] for r in response.context["participants"]} == {1, 2, 4}
+    assert {r.id for r in response.context["participants"]} == {1, 2, 4}
     html = response.content.decode()
     assert 'value="2026-09-18"' in html and "Дмитрий" in html
     assert 'value="онлайн" selected' in html
@@ -160,24 +169,18 @@ def test_threshold_changes_groups_on_page(client):
     assert "Уменьшите минимум" in response.content.decode()
 
 
-def test_all_catalog_sql_queries_have_live_web_use(client, monkeypatch):
-    seen = set()
-    original = database.read_queries
+def test_web_pages_no_longer_use_legacy_sql_queries(client, monkeypatch):
+    def forbidden():
+        raise AssertionError("Веб-страница вызвала старый SQL-слой")
 
-    class Queries(dict):
-        def __getitem__(self, name):
-            seen.add(name)
-            return super().__getitem__(name)
-
-    monkeypatch.setattr(database, "read_queries", lambda: Queries(original()))
+    monkeypatch.setattr(database, "read_queries", forbidden)
     for url in ("/", "/subjects/", "/subjects/1/", "/requests/", "/requests/5/",
                 "/requests/?status=active", "/requests/?status=closed",
                 "/requests/search/?date=2026-09-18", "/requests/statistics/"):
         assert client.get(url).status_code == 200
-    assert seen == set(original())
 
 
-def test_sql_error_is_not_hidden_as_empty_search(client, monkeypatch):
+def test_legacy_sql_error_is_not_hidden_as_empty_result(monkeypatch):
     original = database.read_queries
 
     def broken():
@@ -187,4 +190,4 @@ def test_sql_error_is_not_hidden_as_empty_search(client, monkeypatch):
 
     monkeypatch.setattr(database, "read_queries", broken)
     with pytest.raises(sqlite3.OperationalError):
-        client.get("/requests/search/")
+        query("search_requests")

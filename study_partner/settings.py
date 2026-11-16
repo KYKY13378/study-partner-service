@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     "homepage",
     "subjects",
     "requests",
+    "users",
 ]
 
 MIDDLEWARE = [
@@ -79,7 +80,7 @@ WSGI_APPLICATION = 'study_partner.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'NAME': os.environ.get('DJANGO_DATABASE_PATH', BASE_DIR / 'data/study_partner_orm.sqlite3'),
     }
 }
 
@@ -124,3 +125,10 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Панель нужна для защиты ПР9. Включается явно, только локально и при DEBUG.
+DEBUG_TOOLBAR_ENABLED = DEBUG and os.environ.get("DJANGO_DEBUG_TOOLBAR", "0") == "1"
+if DEBUG_TOOLBAR_ENABLED:
+    INSTALLED_APPS += ["debug_toolbar"]
+    MIDDLEWARE.insert(0, "debug_toolbar.middleware.DebugToolbarMiddleware")
+    INTERNAL_IPS = ["127.0.0.1", "::1"]

@@ -1,0 +1,7 @@
+{% if page_obj.paginator.num_pages > 1 %}
+<nav class="pagination" aria-label="Страницы результатов">
+  {% if page_obj.has_previous %}<a class="page-step" href="{% querystring page=page_obj.previous_page_number %}" rel="prev">← Назад</a>{% else %}<span class="page-step disabled" aria-disabled="true">← Назад</span>{% endif %}
+  <span class="page-numbers">{% for number in page_obj.paginator.page_range %}{% if number == page_obj.number %}<span class="page-number current" aria-current="page">{{ number }}</span>{% elif number == 1 or number == page_obj.paginator.num_pages or number >= page_obj.number|add:'-2' and number <= page_obj.number|add:'2' %}<a class="page-number" href="{% querystring page=number %}">{{ number }}</a>{% endif %}{% endfor %}</span>
+  {% if page_obj.has_next %}<a class="page-step" href="{% querystring page=page_obj.next_page_number %}" rel="next">Далее →</a>{% else %}<span class="page-step disabled" aria-disabled="true">Далее →</span>{% endif %}
+</nav>
+{% endif %}

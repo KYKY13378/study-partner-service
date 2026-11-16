@@ -1,222 +1,273 @@
 # Сервис поиска партнеров для учебы
 
-Студенты выбирают предмет, дату и формат совместной подготовки и просматривают
-запросы участников. Индивидуальная тема: «Сервис поиска партнеров для учебы».
-
-## Текущее состояние — ПР7
-
-Все веб-страницы получают данные из `data/study_partner.sqlite` стандартным
-модулем Python `sqlite3`. Django ORM для данных предметной области не используется.
-19 именованных SQL-запросов из `sql/queries.sql` исполняются самим сайтом.
-Сохранены шаблоны, CSS, SVG, быстрые фильтры JavaScript и обработчики 404 ПР6.
-Основные новые возможности: серверный поиск по дате/предмету/формату/автору/статусу
-и статистика с COUNT, SUM, MIN/MAX, GROUP BY и настраиваемым HAVING.
-
-Это учебный каталог запросов: авторизация, переписка, создание пары и веб-редактирование
-пока не реализованы. Активность определяется флагом is_closed, а не текущей датой.
-Даты исходных примеров исторические. Участник без активного запроса на выбранную
-дату не обязательно свободен — сайт явно поясняет это.
+Индивидуальная тема: поиск партнеров по предмету, дате и формату занятий.
+Текущее состояние — **ПР9: Django ORM, модели, связи и операции с данными**.
+Продолжен прежний проект ПР1–ПР7; исходные JSON, SQL и база ПР7 сохранены.
 Яндекс Практикум отложен по поручению пользователя.
 
-## Подготовка и запуск (PowerShell из корня проекта)
+Автор: Ким Артём Юрьевич, группа ЭФБО-18-24, РТУ МИРЭА.
+Дисциплина: «Технологии разработки приложений на базе фреймворков».
+
+## Быстрый запуск (PowerShell из корня проекта)
+
+Для новой установки:
 
 ```powershell
 python -m venv venv
 .\venv\Scripts\python.exe -m pip install -r requirements.txt
-.\venv\Scripts\python.exe -m db.database
-.\venv\Scripts\python.exe -m db.import_json
 .\venv\Scripts\python.exe manage.py migrate
-.\venv\Scripts\python.exe manage.py runserver 127.0.0.1:8007
+.\venv\Scripts\python.exe manage.py import_pr7
+.\venv\Scripts\python.exe manage.py runserver 127.0.0.1:8009
 ```
 
-При следующих запусках достаточно последней команды. Поставка уже содержит БД.
-`db.database` создает схему с IF NOT EXISTS, не удаляя данные.
-Импорт читает исходные JSON, использует executemany и одну транзакцию для всех трех
-коллекций. Сначала users и subjects, затем study_requests. ID сохраняются; дата
-ДД.ММ.ГГГГ преобразуется в YYYY-MM-DD, bool — в INTEGER 0/1, пустая группа — NULL.
-При ошибке вставок транзакция откатывается. Повторный импорт добавляет отсутствующие
-ID, но не обновляет существующие (`ON CONFLICT(id) DO NOTHING`). Он не синхронизирует
-измененные или удаленные записи JSON с БД. Для проверки чистого импорта:
+При следующих запусках достаточно последней команды. В учебной папке есть
+`Запустить_ПР9.cmd`: он применяет миграции, импортирует ПР7 только при пустых таблицах
+и запускает порт 8009 с локальной Django Debug Toolbar.
+После переноса проекта venv нужно пересоздать. Зависимости: Django 5.2,
+pytest, pytest-django, flake8, django-debug-toolbar; конкретные диапазоны в requirements.txt.
+
+## Модели и связи
+
+| Приложение / модель | Поля | Назначение |
+|---|---|---|
+| users.User | id BigAutoField PK; name CharField(100); group_name CharField(32, blank=True, null=True, default=None) | Участник сервиса, без авторизации |
+| subjects.Subject | id BigAutoField PK; name CharField(120) | Учебный предмет |
+| requests.StudyRequest | id BigAutoField PK; user FK; subject FK; format CharField(6, choices); study_date DateField; is_closed BooleanField(default=False) | Учебный запрос |
+
+Первичные ключи добавляются Django по DEFAULT_AUTO_FIELD. Поля name обязательны;
+CHECK запрещает пустую строку, clean() также отклоняет имя из пробелов.
+У StudyRequest два ForeignKey с `on_delete=PROTECT` и `related_name="study_requests"`.
+Поэтому `item.user`, `item.subject` дают связанные модели, `item.user_id` и
+`item.subject_id` — числовые ключи. Обратные связи: `user.study_requests.all()`
+и `subject.study_requests.all()`. PROTECT на уровне ORM запрещает удалять родителя,
+пока на него ссылаются запросы. На уровне SQLite есть внешние ключи.
+Формат ограничен онлайн/офлайн, статус — 0/1; CHECK-ограничения включены в миграции.
+Индексы: дата, (subject,is_closed), (user,study_date,is_closed).
+
+`users.User` — участник предметной области, это отдельная модель от
+`django.contrib.auth.models.User`, используемой административной авторизацией.
+Веб-авторизация участников, переписка, отклики и создание пары не реализованы.
+CRUD доступен через Django Shell, зарегистрированные модели admin и демонстрационную
+команду; пользовательские формы создания/редактирования — следующий этап.
+
+Модели имеют __str__. StudyRequest.close() сохраняет статус через
+save(update_fields=["is_closed"]). Свойства User.group, StudyRequest.study_day и
+StudyRequest.date поддерживают прежние карточки ПР6. В ORM дата — объект date,
+в отображении используется прежний фильтр шаблона date.
+save()/objects.create() сами по себе не вызывают full_clean(): для проверки введенных
+полей вызывайте full_clean() явно; ModelForm в admin делает это при валидации.
+
+## Миграции и стратегия перехода
+
+Выбрана новая база **data/study_partner_orm.sqlite3**, управляемая Django.
+Файл не включен в Git, база воспроизводится миграциями и импортом.
+Путь можно переопределить переменной DJANGO_DATABASE_PATH (например для проверки
+запуска с чистой БД). Прежняя data/study_partner.sqlite открывается импортером
+только с mode=ro и остается источником ПР7. Служебный старый db.sqlite3 тоже сохранен;
+ПР9 его не использует. Не применяйте ORM-миграции к исходной базе ПР7.
+
+Созданы initial-миграции users, subjects, requests. Миграция запросов зависит от
+обоих родителей. Для проверки структуры:
 
 ```powershell
-.\venv\Scripts\python.exe -m db.import_json --database data/demo.sqlite
+.\venv\Scripts\python.exe manage.py makemigrations --check --dry-run
+.\venv\Scripts\python.exe manage.py showmigrations
+.\venv\Scripts\python.exe manage.py sqlmigrate requests 0001
 ```
 
-Файл `demo.sqlite` — отдельная учебная копия, ее не следует добавлять в Git.
-Все пути вычисляются от файлов модулей, независимо от текущей рабочей папки.
-Обычное соединение открывает БД с `mode=rw`: опечатка в пути вызовет ошибку,
-а не создаст незаметно пустую базу. Создание разрешено только инициализатору.
-`PRAGMA foreign_keys=ON` и `row_factory=sqlite3.Row` устанавливаются на каждом соединении;
-соединения закрываются через contextlib.closing. `with connection` управляет транзакцией,
-но само по себе не закрывает соединение.
+`db/inspect_source_db.py` проверяет целостность, таблицы, столбцы, PK/FK и counts.
+`db/transfer_to_orm.py` и команда `import_pr7` читают пользователей, предметы, затем
+запросы. Даты ISO преобразуются в date, 0/1 — в bool, ID и внешние ключи сохраняются.
+Все вставки через ORM, с full_clean(), в одной transaction.atomic().
+При ошибке ранее вставленные в этой транзакции родители/дети откатываются.
+Повторный импорт одинаковых записей ничего не добавляет. Если существующий ID имеет
+другие поля, команда завершается ошибкой без перезаписи. Флаг --only-if-empty
+используется запускателем: если хотя бы одна таблица уже заполнена, импорт пропускается.
+Это защищает последующие ORM-изменения от повторного импорта при каждом запуске.
+Сравнение с источником: 4 участника, 3 предмета, 5 запросов; все ID и связи совпадают.
 
-Служебная Django БД `db.sqlite3` существует отдельно и не содержит таблиц проекта.
-`manage.py migrate` работает только со служебными приложениями Django.
-При переносе папки venv необходимо пересоздать. DEBUG управляется DJANGO_DEBUG,
-ALLOWED_HOSTS по умолчанию localhost и 127.0.0.1.
-
-## Схема базы данных
-
-| Таблица | Поля и типы | Ограничения |
-|---|---|---|
-| users | id INTEGER; name TEXT; group_name TEXT | id PK; name NOT NULL, не пустое; group_name допускает NULL |
-| subjects | id INTEGER; name TEXT | id PK; name NOT NULL, не пустое |
-| study_requests | id INTEGER; user_id INTEGER; subject_id INTEGER; format TEXT; study_date TEXT; is_closed INTEGER | id PK; остальные NOT NULL; два FK; format онлайн/офлайн; дата ISO; статус 0/1, DEFAULT 0 |
-
-`study_requests.user_id → users.id`, `study_requests.subject_id → subjects.id`:
-отношения многие-к-одному, удаление родителей с запросами запрещено (RESTRICT).
-CHECK для даты проверяет длину и календарную нормализацию через date(..., '+0 days').
-Индексы: (subject_id,is_closed), (user_id,study_date,is_closed), (study_date).
-Схема — `sql/schema.sql`. Исходный импорт: 4 пользователя, 3 предмета, 5 запросов;
-4 активных, 1 закрытый. Только group_name допускает NULL (кроме особенностей INTEGER PK:
-SQLite генерирует ID при вставке NULL). Это не Django-модели.
-
-```mermaid
-erDiagram
-    users ||--o{ study_requests : author
-    subjects ||--o{ study_requests : subject
+```powershell
+.\venv\Scripts\python.exe -m db.inspect_source_db
+.\venv\Scripts\python.exe manage.py import_pr7 --only-if-empty
 ```
 
-## Страницы
+## Страницы и параметры
 
-| Адрес | Назначение | Имя URL |
+| Адрес | Результат |
+|---|---|
+| `/` | предметы, агрегаты и три последних запроса |
+| `/subjects/` | предметы с числом активных запросов; `?q=математика` — поиск по названию |
+| `/subjects/1/` | предмет и связанные активные запросы |
+| `/requests/` | каталог, по умолчанию все статусы |
+| `/requests/3/` | запрос с автором/предметом одним запросом SELECT JOIN |
+| `/requests/search/` | тот же поиск, по умолчанию только активные |
+| `/requests/statistics/` | COUNT, условные подсчеты, GROUP BY, HAVING, MIN/MAX |
+
+Имена URL и namespaces ПР6–ПР7 сохранены. Детальные страницы используют
+get_object_or_404; Http404 обрабатывается локально, чтобы сохранить оформленную
+страницу с сообщением при DEBUG=True. Неизвестный маршрут при DEBUG=False
+попадает в общий handler404.
+
+Параметры каталога и поиска:
+
+| GET | Допустимые значения / поведение |
+|---|---|
+| q | до 100 символов, буквальный поиск по предмету, имени и группе |
+| date | календарная дата строго YYYY-MM-DD |
+| subject, user | положительный целый ID; несуществующий ID дает пустую выборку |
+| format | пусто, онлайн, офлайн |
+| status | all, active, closed |
+| sort | date, date_desc, subject, author; неизвестное значение →date |
+| per_page | 2, 5, 10, 20; по умолчанию 2 |
+| view | cards, table; по умолчанию cards |
+| page | номер страницы; нечисловой → первая, выход за диапазон (в т.ч. 0/-1) → последняя |
+
+Вход проверяется Django Form. Ошибочные фильтры дают HTTP400 с пояснением,
+пустой корректный результат — HTTP200. order_by выбирается из фиксированного
+словаря SORT_FIELDS, произвольное имя поля от пользователя не передается.
+Фильтрация → сортировка → Paginator → context → template.
+У сортировок есть стабильный дополнительный ключ pk. Новый поиск сбрасывает page,
+ссылки {% querystring page=number %} сохраняют остальные параметры.
+Карточки и таблица переключаются без потери условий, переход вида начинает страницу 1.
+Быстрый JavaScript-фильтр ПР6 сохранен и явно действует на текущую страницу;
+глобальный поиск через GET работает без JavaScript.
+
+Для кириллицы применяется стандартный ORM lookup iregex с re.escape ввода:
+пользователь задает буквальный текст, а не регулярное выражение. Это сохраняет
+регистронезависимый поиск в SQLite, где обычный LIKE/icontains ограничен для
+не-ASCII символов. SQL по-прежнему генерирует ORM, значения связывает Django.
+
+## Рабочие ORM-выражения
+
+Реализация — requests/queries.py, views.py приложений и Paginator в requests/views.py.
+Каталог ниже содержит больше 15 различных выражений. Один составной QuerySet
+считается одним выражением; повтор одной статистики на двух страницах не увеличивает число.
+
+| № | Выражение / функция | Использование |
 |---|---|---|
-| `/` | Предметы, показатели, три последних запроса | homepage:index |
-| `/subjects/` | Предметы с числом активных запросов | subjects:list |
-| `/subjects/1/` | Предмет и только его активные запросы | subjects:detail |
-| `/requests/` | Все запросы; `?status=active` / `closed` — SQL-фильтрация | requests:list |
-| `/requests/5/` | Карточка с автором и предметом из JOIN | requests:detail |
-| `/requests/search/` | Поиск через GET, работающий без JavaScript | requests:search |
-| `/requests/statistics/` | Сводные таблицы, `?min_count=2` задает HAVING | requests:statistics |
+| 1 | Subject.objects.all() | главная, выбор предмета |
+| 2 | get_object_or_404(Subject, pk=...) | детальная страница предмета |
+| 3 | get_object_or_404(StudyRequest.objects.select_related(...), pk=...) | карточка запроса |
+| 4 | StudyRequest.objects.select_related("user","subject") | общий каталог |
+| 5 | ...filter(is_closed=False) | активные запросы |
+| 6 | ...filter(is_closed=True) | закрытые запросы |
+| 7 | filter_requests: filter(**conditions) | дата+предмет+автор+формат |
+| 8 | filter_requests: Q(subject__name__iregex=...) \| Q(user__name__iregex=...) \| Q(user__group_name__iregex=...) | поиск по связанным полям |
+| 9 | get_subject_cards: filter(name__iregex=...) | поиск по одному строковому полю |
+| 10 | order_by("-study_date","-pk") | сортировка по убыванию даты |
+| 11 | order_by("subject__name","study_date","pk") | сортировка по связанному полю и дате |
+| 12 | subject.study_requests.filter(is_closed=False).select_related(...) | обратная связь на странице предмета |
+| 13 | ...order_by("-pk")[:3] | недавние запросы главной |
+| 14 | aggregate(total=Count(...),active=Count(...filter=Q(...)),closed=...) | сводные показатели |
+| 15 | User.objects.count() | число участников |
+| 16 | Subject.objects.count() | число предметов |
+| 17 | Subject.objects.annotate(active_count=Count(...filter=Q(...))) | предметы, включая объекты без запросов |
+| 18 | User.objects.annotate(total=...,active=...,closed=...) | статистика участников |
+| 19 | ...filter(active_count__gte=minimum).order_by("-active_count","pk") | популярные предметы, HAVING |
+| 20 | values("format").annotate(total=Count(...),active=...) | группировка по формату |
+| 21 | aggregate(first_date=Min(...),last_date=Max(...)) | диапазон дат |
+| 22 | User.objects.exclude(pk__in=StudyRequest.objects.filter(...).values_list("user_id",flat=True)) | участники без активного запроса на дату |
+| 23 | values_list("format",flat=True).distinct() | варианты формата в форме |
+| 24 | annotate(user_name=F("user__name"),subject_name=F("subject__name"),user_group=F(...)).values(...) | табличный вид каталога |
+| 25 | User.objects.values("id","name","group_name").order_by("name","pk") | список авторов формы |
+| 26 | Paginator(queryset, page_size).get_page(page) | LIMIT/OFFSET и счетчик страниц |
 
-Полный адрес примера: http://127.0.0.1:8007/requests/search/?date=2026-09-18&subject=1&format=онлайн&status=active
-Результат — Дмитрий, запрос №3. Без активных запросов на эту дату: Алексей, Мария, Артём.
-`date`, `subject`, `format`, `user`, `status` необязательны; по умолчанию только активные.
-Пустое условие передается как None/NULL и отключает соответствующий фильтр.
-Ошибочные даты, идентификаторы, перечисления и порог дают HTTP 400 с пояснением.
-Несуществующий корректный ID в поиске дает пустой список, а на странице объекта — 404.
+Минимумы соблюдены: базовое получение ≥ 2, фильтрация ≥ 4, поиск ≥ 2, сортировка ≥ 2,
+связи ≥ 2, агрегирование/аннотирование ≥ 2, пагинация 1. Выражения реализуют функции сайта,
+а не добавлены только для демонстрации в Shell. Создание/обновление/удаление дополнительно
+показаны в admin и команде orm_demo.
+`exclude` использует подзапрос: закрытый запрос на выбранную дату не исключает участника,
+даже если у него есть активный запрос на другую дату. «Без запроса» не означает,
+что участник подтвердил свободное время; пояснение отображается на сайте.
 
-## Каталог SQL: все запросы используются веб-приложением
+## CRUD и демонстрация
 
-| Имя в queries.sql | Вид | Где используется |
-|---|---|---|
-| list_subjects | SELECT списка | главная, список предметов формы поиска |
-| list_users | SELECT списка | список авторов формы поиска |
-| subject_by_id | WHERE | карточка предмета |
-| active_requests | WHERE, JOIN | каталог активных запросов |
-| closed_requests | WHERE, JOIN | каталог закрытых запросов |
-| all_requests | JOIN | общий каталог запросов |
-| request_by_id | JOIN, WHERE | карточка запроса |
-| requests_for_subject | JOIN, WHERE | активные запросы выбранного предмета |
-| search_requests | JOIN, WHERE по пяти параметрам | серверный поиск |
-| request_totals | COUNT, SUM, COALESCE | главная, статистика |
-| catalog_totals | COUNT | главная, статистика |
-| subjects_statistics | LEFT JOIN, COUNT, GROUP BY | предметы, статистика |
-| users_statistics | LEFT JOIN, COUNT, SUM, GROUP BY | статистика участников |
-| popular_subjects | WHERE, GROUP BY, HAVING | популярные предметы с заданным порогом |
-| format_statistics | COUNT, SUM, GROUP BY | статистика форматов |
-| date_range | MIN, MAX | период запросов в статистике |
-| users_without_requests_for_date | NOT EXISTS, WHERE | участники без активного запроса на выбранную дату |
-| recent_requests | JOIN, ORDER BY, LIMIT | недавние запросы главной |
-| distinct_formats | SELECT DISTINCT | форматы в форме поиска |
-
-Требование «минимум 10 и по два каждого вида» выполнено: простых списков 2,
-WHERE ≥2, JOIN ≥2, агрегатных ≥2, GROUP BY 4. Категории могут пересекаться.
-SQL-файл читается при выполнении: правку запроса можно проверить обновлением страницы.
-Имена запросов фиксированы в коде, пользователь не выбирает SQL или имена таблиц.
-Значения передаются отдельно: `query("subject_by_id", (subject_id,))`.
-`?1`, `?2` — нумерованные параметры SQLite; db.database преобразует последовательность
-в словарь с ключами "1", "2" для DB-API. Строковая подстановка пользовательских значений
-и f-строки для них не используются. В импортере f-строка COUNT применена только к
-фиксированным именам трех таблиц, не к пользовательским данным.
-
-## Путь данных и структура
-
-`GET → requests.views.search → валидация → db.repository.search_requests →
-db.database.query → sql/queries.sql → sqlite3.Row → объект StudyRequest →
-context["study_requests"] → requests/search.html → HTML`.
-Статистика передает sqlite3.Row напрямую: `{{ row.active_count }}` обращается по имени.
-Адаптер repository восстанавливает вложенные User/Subject для прежних карточек ПР6.
-Агрегирование и фильтрация выполняются SQL, не Python-циклами.
-
-```text
-db/database.py       соединение, создание схемы, исполнение именованных SQL
-db/import_json.py    транзакционный импорт JSON
-db/repository.py     строки SQLite → объекты ПР3
-sql/schema.sql      CREATE TABLE/INDEX
-sql/queries.sql     19 запросов, выполняемых сайтом
-data/*.json         исходные коллекции и прежняя консольная реализация
-data/study_partner.sqlite    рабочая БД веб-приложения
-homepage/ subjects/ requests/    views, urls, templates
-templates/          base, navigation, footer, 404
-homepage/static/    локальные CSS, JS, SVG
-src/ main.py        прежняя объектная модель и консольное JSON-приложение
-tests/              98 тестов, в том числе test_sqlite.py
+```powershell
+.\venv\Scripts\python.exe manage.py orm_demo
+.\venv\Scripts\python.exe manage.py shell
 ```
 
-Консольный запуск: `.\venv\Scripts\python.exe main.py`. Он по-прежнему пишет JSON;
-изменения существующих JSON-записей автоматически на сайт не переносятся.
+orm_demo печатает рабочие выражения, SQL, результаты, Paginator и CRUD. Специально
+созданные тестовые данные всегда отменяются transaction.set_rollback(True).
+Исходные пользовательские записи не редактируются этой демонстрацией.
+Для ручной работы в Shell:
+
+```python
+from requests.models import StudyRequest
+from subjects.models import Subject
+from users.models import User
+item = StudyRequest.objects.select_related("user", "subject").get(pk=3)
+item.user, item.subject, item.user_id, item.subject_id
+list(item.subject.study_requests.values_list("pk", flat=True))
+```
+
+Для создания: model(...), full_clean(), save() либо objects.create(...), учитывая,
+что create не вызывает full_clean. Для обновления: присвоить поле и save(update_fields=[...]).
+Для удаления: delete() специально созданной тестовой записи. Удаление связанного
+родителя вызывает ProtectedError. Команда orm_demo выполняет весь цикл воспроизводимо.
+
+## Django Debug Toolbar
+
+Для отдельного ручного запуска:
+
+```powershell
+$env:DJANGO_DEBUG_TOOLBAR='1'
+.\venv\Scripts\python.exe manage.py runserver 127.0.0.1:8009
+```
+
+Панель работает только при DEBUG=True и с локального IP. Нажать DJDT справа → SQL.
+На /requests/3/ — один SELECT с JOIN users_user и subjects_subject.
+В табличном каталоге SQL показывает только поля values(), включая F-алиасы.
+Для обычного запуска выключить переменную или задать 0. При DJANGO_DEBUG=0 панель
+не подключается даже с DJANGO_DEBUG_TOOLBAR=1. Настройки production отдельно не настраивались.
+
+Документация: [Django 5.2 QuerySet](https://docs.djangoproject.com/en/5.2/ref/models/querysets/),
+[Debug Toolbar](https://django-debug-toolbar.readthedocs.io/en/stable/installation.html).
 
 ## Проверки
 
 ```powershell
 .\venv\Scripts\python.exe manage.py check
+.\venv\Scripts\python.exe manage.py showmigrations
+.\venv\Scripts\python.exe manage.py makemigrations --check --dry-run
 .\venv\Scripts\python.exe -m pytest -v
 .\venv\Scripts\python.exe -m flake8 . --extend-exclude=venv
 ```
 
-ПР7: 98 тестов, check и flake8 проходят. Каждый тест использует временную SQLite;
-рабочая база и JSON не меняются. Проверяются PK/FK/CHECK, NULL, откат импорта,
-повторный запуск, параметризация, JOIN/GROUP BY/HAVING, веб-поиск, пустые состояния,
-ошибочный ввод и сохраненные сценарии ПР1–ПР6. Отдельный тест проходит страницы
-и проверяет выполнение всех 19 именованных запросов. SQL-ошибка не выдается за
-пустой результат: диагностируется sqlite3.OperationalError.
+140 тестов: прежние классы/JSON/SQL, перенос и откат, модели/связи/PROTECT, CRUD,
+контроль числа запросов, кириллица, whitelist сортировки, пагинация/GET, 200/400/404.
+pytest-django использует отдельную тестовую БД, SQL-тесты ПР7 — отдельный временный файл.
+Рабочие базы и JSON не изменяются тестами. Чистая установка отдельно проверяется
+миграциями и импортом в новую БД. Журналы и скриншоты — в учебной папке отчет/ПР9.
 
-Для SQLite CLI, если sqlite3.exe в PATH:
+## Структура проекта
 
-```powershell
-sqlite3 data/study_partner.sqlite
-```
+| Каталог / файл | Назначение |
+|---|---|
+| study_partner/ | настройки Django, маршруты и обработчики ошибок |
+| homepage/ | главная страница, общий CSS, JavaScript и шаблоны |
+| users/ | модель и административный интерфейс участников |
+| subjects/ | модель, список и детальная страница предмета |
+| requests/ | модель запросов, ORM-выборки, формы фильтров, страницы, команды |
+| users/migrations/, subjects/migrations/, requests/migrations/ | структура новой базы |
+| db/ | прежний SQL-слой, инспектор и перенос ПР7 в ORM |
+| data/ | исходные JSON/SQLite ПР7; локальная ORM-база исключена из Git |
+| sql/ | схема и запросы предыдущего SQL-этапа |
+| tests/ | тесты консольного приложения, SQL, ORM и веб-страниц |
+| main.py, src/ | прежняя консольная версия, классы сущностей и хранение JSON |
 
-```sql
-.headers on
-.mode table
-.schema
-PRAGMA foreign_keys=ON;
-PRAGMA database_list;
-SELECT COUNT(*) FROM users;
-SELECT COUNT(*) FROM subjects;
-SELECT COUNT(*) FROM study_requests;
-.parameter init
-.parameter set ?1 2
-SELECT s.name, COUNT(r.id) AS active_count
-FROM subjects s JOIN study_requests r ON r.subject_id=s.id
-WHERE r.is_closed=0 GROUP BY s.id,s.name HAVING COUNT(r.id)>=?1;
-PRAGMA integrity_check;
-PRAGMA foreign_key_check;
-.quit
-```
+## Сохраненные версии
 
-Ожидается 4/3/5, Математика=2, integrity_check=ok, foreign_key_check без строк.
-В рабочем окружении официальная CLI сохранена рядом с проектом:
-`..\work\sqlite-tools\sqlite3.exe`; `..\work\check_pr7_cli.py` исполняет все 19 запросов
-и сохраняет журнал в `..\отчет\ПР7`. Загрузка с sqlite.org проверена по SHA3-256.
-SQLite Viewer (`qwtel.sqlite-viewer`) установлен в VS Code: открыть
-`data/study_partner.sqlite` и выбрать таблицу. Это просмотрщик; SQL исполняется CLI.
-
-## Сохраненные версии для защиты
-
-| Работа | Git-коммит | Запуск в учебной папке |
+| Этап | Коммит / состояние | Запуск в учебной папке |
 |---|---|---|
-| ПР1 | 510904e | история Git |
-| ПР2 | b54f1ff | история Git |
-| ПР3 | 8e2ddd8 | история Git |
-| ПР5 | 98621f5 | Запустить_ПР5.cmd, порт 8005, версии/PR5 |
-| ПР6 | 50c4e42 | Запустить_ПР6.cmd, порт 8006, версии/PR6 |
-| ПР7 | коммит с префиксом PR7 | Запустить_ПР7.cmd, порт 8007, основной проект |
+| ПР5 | 98621f5, версии/PR5 | Запустить_ПР5.cmd, порт 8005 |
+| ПР6 | 50c4e42, версии/PR6 | Запустить_ПР6.cmd, порт 8006 |
+| ПР7 | df6af10, версии/PR7 | Запустить_ПР7.cmd, порт 8007 |
+| ПР9 | текущий основной проект, коммит PR9: | Запустить_ПР9.cmd, порт 8009 |
 
-ПР5 и ПР6 используют отдельные сохраненные копии; основной проект развивается дальше.
-Их уже подготовленные отчеты не изменяются. Для неизвестного URL общий handler404
-работает при DEBUG=False; отсутствующий объект возвращает 404 непосредственно из view.
-Для локального показа статики при DEBUG=False: runserver --insecure. Этот флаг
-не предназначен для развертывания в интернете.
+Исходные SQL-модули db/database.py, db/repository.py, sql/ сохранены для истории ПР7.
+Веб-представления ПР9 их не вызывают; прямой sqlite3 используется только в инспекторе
+и чтении исходной базы для переноса. Консольный main.py по-прежнему использует JSON;
+его изменения автоматически не синхронизируются с ORM-базой.
+Для тестов старых сохраненных версий общим venv отключить новый плагин:
+`python -m pytest -p no:django -v` из нужной папки версии. Это не требуется для запуска серверов.
