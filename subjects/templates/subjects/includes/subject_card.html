@@ -1,6 +1,6 @@
 <article class="subject-card">
   <div class="card-top"><span class="subject-number">Предмет {{ subject.id|stringformat:"02d" }}</span><span class="card-arrow" aria-hidden="true">↗</span></div>
   <h3><a class="stretched-link"
-   href="{% url 'subjects:detail' subject.id %}">{{ subject.name|default:"Без названия" }}</a></h3>
+   href="{{ subject.get_absolute_url }}">{{ subject.name|default:"Без названия" }}</a></h3>
   <p>{% if active_count != None %}Открытых запросов: <strong>{{ active_count }}</strong>{% else %}Найдите свой круг единомышленников{% endif %}</p>
 </article>

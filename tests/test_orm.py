@@ -130,8 +130,8 @@ def test_select_related_eliminates_extra_queries(django_assert_num_queries):
         assert all(item.user.name and item.subject.name for item in items)
 
 
-def test_detail_has_one_query_with_related_data(client, django_assert_num_queries):
-    with django_assert_num_queries(1):
+def test_detail_has_join_and_one_shared_context_count(client, django_assert_num_queries):
+    with django_assert_num_queries(2):
         response = client.get("/requests/3/")
         assert "Дмитрий" in response.content.decode()
 
@@ -207,14 +207,17 @@ def test_groups_include_parents_without_requests_and_empty_counts():
     subject = Subject.objects.create(name="Без запросов")
     assert subject_statistics().get(pk=subject.pk).active_count == 0
     StudyRequest.objects.all().delete()
-    assert request_totals() == {"total": 0, "active": 0, "closed": 0}
+    assert request_totals() == {
+        "total": 0, "active": 0, "closed": 0, "cancelled": 0, "completed": 0,
+    }
     assert not popular_subjects(1).exists()
 
 
 def test_exclude_checks_status_and_date_on_same_request():
     # У Дмитрия есть активный запрос 18.09; закрытый 01.10 не делает его занятым 01.10.
     StudyRequest.objects.create(
-        user_id=3, subject_id=1, format="онлайн", study_date=date(2026, 10, 1), is_closed=True,
+        user_id=3, subject_id=1, format="онлайн", study_date=date(2026, 10, 1),
+        status=StudyRequest.Status.COMPLETED,
     )
     assert 3 in users_without_requests_for_date(date(2026, 10, 1)).values_list("pk", flat=True)
     assert 3 not in users_without_requests_for_date(date(2026, 9, 18)).values_list("pk", flat=True)

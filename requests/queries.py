@@ -1,7 +1,7 @@
 """Рабочие ORM-выражения ПР9. Все функции вызываются страницами приложения."""
 import re
 
-from django.db.models import Count, F, Max, Min, Q
+from django.db.models import BooleanField, Case, CharField, Count, F, Max, Min, Q, Value, When
 
 from requests.models import StudyRequest
 from subjects.models import Subject
@@ -28,7 +28,7 @@ def get_users():
 def get_subject_cards(text=""):
     """Q03/Q04: статистика с нулевыми значениями; поиск по одному строковому полю."""
     items = Subject.objects.annotate(active_count=Count(
-        "study_requests", filter=Q(study_requests__is_closed=False),
+        "study_requests", filter=Q(study_requests__status=StudyRequest.Status.ACTIVE),
     )).order_by("pk")
     if text:
         # iregex в SQLite реализуется Django через Python re и поддерживает кириллицу.
@@ -40,17 +40,23 @@ def get_subject_cards(text=""):
 def get_requests(status="all"):
     """Q05/Q06/Q07: связанные объекты, активные и закрытые запросы."""
     items = StudyRequest.objects.select_related("user", "subject")
-    if status == "active":
-        return items.filter(is_closed=False)
+    if status == StudyRequest.Status.ACTIVE:
+        return items.active()
+    if status == StudyRequest.Status.CANCELLED:
+        return items.cancelled()
+    if status == StudyRequest.Status.COMPLETED:
+        return items.completed()
     if status == "closed":
-        return items.filter(is_closed=True)
+        return items.exclude(status=StudyRequest.Status.ACTIVE)
     return items
 
 
 def filter_requests(items, filters):
     """Q08/Q09: несколько условий, поля связанных моделей и поиск через Q."""
+    if filters.get("date"):
+        items = items.for_date(filters["date"])
     conditions = {}
-    for field, key in (("study_date", "date"), ("subject_id", "subject"),
+    for field, key in (("subject_id", "subject"),
                        ("user_id", "user"), ("format", "format")):
         if filters.get(key):
             conditions[field] = filters[key]
@@ -71,7 +77,7 @@ def sort_requests(items, sort):
 
 def get_requests_for_subject(subject):
     """Q12: обратная связь, фильтрация и загрузка автора одним JOIN."""
-    return subject.study_requests.filter(is_closed=False).select_related("user", "subject")
+    return subject.study_requests.active().select_related("user", "subject")
 
 
 def get_recent_requests():
@@ -82,8 +88,10 @@ def get_recent_requests():
 def request_totals():
     """Q14: агрегаты над всей таблицей, включая корректные нули без записей."""
     return StudyRequest.objects.aggregate(
-        total=Count("pk"), active=Count("pk", filter=Q(is_closed=False)),
-        closed=Count("pk", filter=Q(is_closed=True)),
+        total=Count("pk"), active=Count("pk", filter=Q(status=StudyRequest.Status.ACTIVE)),
+        closed=Count("pk", filter=~Q(status=StudyRequest.Status.ACTIVE)),
+        cancelled=Count("pk", filter=Q(status=StudyRequest.Status.CANCELLED)),
+        completed=Count("pk", filter=Q(status=StudyRequest.Status.COMPLETED)),
     )
 
 
@@ -95,7 +103,7 @@ def catalog_totals():
 def subject_statistics():
     """Q17: LEFT JOIN сохраняет предметы без учебных запросов."""
     return Subject.objects.annotate(active_count=Count(
-        "study_requests", filter=Q(study_requests__is_closed=False),
+        "study_requests", filter=Q(study_requests__status=StudyRequest.Status.ACTIVE),
     )).order_by("pk")
 
 
@@ -103,8 +111,9 @@ def user_statistics():
     """Q18: условные подсчёты по каждому участнику."""
     return User.objects.annotate(
         total=Count("study_requests"),
-        active=Count("study_requests", filter=Q(study_requests__is_closed=False)),
-        closed=Count("study_requests", filter=Q(study_requests__is_closed=True)),
+        active=Count("study_requests", filter=Q(study_requests__status=StudyRequest.Status.ACTIVE)),
+        closed=Count("study_requests", filter=Q(study_requests__status__in=[
+            StudyRequest.Status.CANCELLED, StudyRequest.Status.COMPLETED])),
     ).order_by("pk")
 
 
@@ -116,7 +125,7 @@ def popular_subjects(minimum):
 def format_statistics():
     """Q20: группировка values + annotate по формату занятия."""
     return StudyRequest.objects.order_by().values("format").annotate(
-        total=Count("pk"), active=Count("pk", filter=Q(is_closed=False)),
+        total=Count("pk"), active=Count("pk", filter=Q(status=StudyRequest.Status.ACTIVE)),
     ).order_by("format")
 
 
@@ -127,7 +136,7 @@ def date_range():
 
 def users_without_requests_for_date(day):
     """Q22/Q23: подзапрос values_list и exclude; закрытые запросы не мешают."""
-    busy = StudyRequest.objects.filter(study_date=day, is_closed=False).values_list(
+    busy = StudyRequest.objects.active().for_date(day).values_list(
         "user_id", flat=True,
     )
     return User.objects.exclude(pk__in=busy)
@@ -142,6 +151,11 @@ def request_rows(items):
     """Q25: F-выражения и values используются табличным видом каталога."""
     return items.annotate(
         user_name=F("user__name"), subject_name=F("subject__name"),
-        user_group=F("user__group_name"),
+        user_group=F("user__group_name"), subject_slug=F("subject__slug"),
+        is_closed=Case(When(status=StudyRequest.Status.ACTIVE, then=Value(False)),
+                       default=Value(True), output_field=BooleanField()),
+        status_label=Case(*[When(status=code, then=Value(label))
+                            for code, label in StudyRequest.Status.choices],
+                          output_field=CharField()),
     ).values("id", "user_id", "subject_id", "user_name", "subject_name", "user_group",
-             "format", "study_date", "is_closed")
+             "format", "study_date", "status", "status_label", "is_closed", "subject_slug")

@@ -1,12 +1,21 @@
 """Участник сервиса; отдельная сущность от пользователя авторизации Django."""
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models.functions import Concat
 
 
 class User(models.Model):
     name = models.CharField("Имя", max_length=100)
     group_name = models.CharField("Учебная группа", max_length=32,
                                   blank=True, null=True, default=None)
+    display_name = models.GeneratedField(
+        verbose_name="Подпись участника",
+        expression=Concat("name", models.Case(
+            models.When(group_name__isnull=True, then=models.Value("")),
+            models.When(group_name="", then=models.Value("")),
+            default=Concat(models.Value(" · "), "group_name"),
+        )), output_field=models.CharField(max_length=140), db_persist=True,
+    )
 
     class Meta:
         ordering = ["pk"]

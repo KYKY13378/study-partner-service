@@ -1,6 +1,7 @@
 """Проверка параметров поиска. Изменение данных через веб-формы — следующий этап."""
 from django import forms
 
+from requests.models import StudyRequest
 from requests.queries import SORT_FIELDS
 
 
@@ -13,7 +14,7 @@ class RequestFiltersForm(forms.Form):
     format = forms.ChoiceField(label="Формат", required=False,
                                choices=[("", "Все"), ("онлайн", "Онлайн"), ("офлайн", "Офлайн")])
     status = forms.ChoiceField(label="Статус", choices=[
-        ("all", "Все"), ("active", "Активные"), ("closed", "Закрытые"),
+        ("all", "Все"), *StudyRequest.Status.choices, ("closed", "Все закрытые"),
     ])
     sort = forms.CharField(label="Сортировка", max_length=50, required=False)
     per_page = forms.TypedChoiceField(label="Запросов на странице", required=False, coerce=int,

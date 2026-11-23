@@ -14,8 +14,8 @@
           <p>Группа {{ study_request.user.group|default:"не указана" }}</p>
         </div>
       </div>
-      <dl class="detail-facts"><div><dt>Предмет</dt><dd><a href="{% url 'subjects:detail' study_request.subject.id %}">{{ study_request.subject.name }}</a></dd></div><div><dt>Формат занятий</dt><dd>{{ study_request.format|capfirst }}</dd></div><div><dt>Желаемая дата</dt><dd>{{ study_request.study_day|date:"d E Y"|default:"Дата не указана" }}</dd></div><div><dt>Статус</dt><dd>{% if study_request.is_closed %}Поиск завершен{% else %}Поиск открыт{% endif %}</dd></div></dl>
+      <dl class="detail-facts"><div><dt>Предмет</dt><dd><a href="{{ study_request.subject.get_absolute_url }}">{{ study_request.subject.name }}</a></dd></div><div><dt>Формат занятий</dt><dd>{{ study_request.format|capfirst }}</dd></div><div><dt>Желаемая дата</dt><dd>{{ study_request.study_day|date:"d E Y"|default:"Дата не указана" }}</dd></div><div><dt>Статус</dt><dd>{{ study_request.get_status_display }}</dd></div></dl>
     </article>
-    <aside class="detail-note"><span class="note-number">Вместе</span><h2>{% if study_request.is_closed %}Этот запрос закрыт{% else %}Одна тема, общий интерес{% endif %}</h2><p>{% if study_request.is_closed %}Автор завершил поиск по этому запросу. Посмотрите другие предложения участников.{% else %}Сравните предмет, дату и формат занятий с вашими учебными планами.{% endif %}</p><a class="button button-primary" href="{% url 'requests:list' %}">Другие запросы →</a></aside>
+    <aside class="detail-note"><span class="note-number">Вместе</span><h2>{% if study_request.is_closed %}Этот запрос закрыт{% else %}Одна тема, общий интерес{% endif %}</h2><p>{% if study_request.is_closed %}Статус: {{ study_request.get_status_display }}. Этот запрос не считается активным. Посмотрите другие предложения участников.{% else %}Сравните предмет, дату и формат занятий с вашими учебными планами.{% endif %}</p><a class="button button-primary" href="{% url 'requests:list' %}">Другие запросы →</a></aside>
   </section>
 {% endblock %}

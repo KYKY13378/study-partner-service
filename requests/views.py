@@ -45,7 +45,8 @@ def _catalog(request, *, is_search):
         "filters": display_filters, "status": parameters["status"],
         "subjects": get_subjects(), "users": get_users(), "formats": distinct_formats(),
         "participants": participants, "error": error, "is_search": is_search,
-        "sort_options": SORT_OPTIONS, "page_sizes": ["2", "5", "10", "20"],
+        "status_choices": StudyRequest.Status.choices, "sort_options": SORT_OPTIONS,
+        "page_sizes": ["2", "5", "10", "20"],
     }, status=400 if error else 200)
 
 

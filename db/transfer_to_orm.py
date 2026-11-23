@@ -47,7 +47,8 @@ def transfer_to_orm(source=SOURCE_DB, *, only_if_empty=False):
             requests.append((row["id"], {
                 "user_id": row["user_id"], "subject_id": row["subject_id"],
                 "format": row["format"], "study_date": date.fromisoformat(row["study_date"]),
-                "is_closed": bool(row["is_closed"]),
+                "status": (StudyRequest.Status.COMPLETED if row["is_closed"]
+                           else StudyRequest.Status.ACTIVE),
             }))
         copy(StudyRequest, requests)
         return {"created": created, "existing": existing}

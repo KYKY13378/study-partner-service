@@ -61,7 +61,7 @@ def test_detail_passes_related_objects_and_closed_state(client):
     assert item.is_closed
     html = response.content.decode()
     assert 'status-closed' in html
-    assert "Поиск завершен" in html
+    assert "Завершён" in html
     assert "01 октября 2026" in html
 
 

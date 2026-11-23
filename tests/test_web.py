@@ -38,7 +38,8 @@ def test_missing_route_uses_custom_404(client):
 
 def test_converter_rejects_text_before_view():
     with pytest.raises(Resolver404):
-        resolve("/subjects/abc/")
+        resolve("/requests/abc/")
+    assert resolve("/subjects/abc/").kwargs == {"slug": "abc"}
     assert resolve("/subjects/999/").kwargs == {"subject_id": 999}
 
 

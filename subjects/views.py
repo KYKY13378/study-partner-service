@@ -15,9 +15,9 @@ def subjects(request: HttpRequest) -> HttpResponse:
     }, status=400 if error else 200)
 
 
-def subject_detail(request: HttpRequest, subject_id: int) -> HttpResponse:
+def subject_detail(request: HttpRequest, subject_id=None, slug=None) -> HttpResponse:
     try:
-        subject = get_object_or_404(Subject, pk=subject_id)
+        subject = get_object_or_404(Subject, **({"slug": slug} if slug else {"pk": subject_id}))
     except Http404:
         # Сохраняем оформленный ответ ПР6 и при DEBUG=True.
         return render(request, "404.html", {"message": "Предмет не найден"}, status=404)
